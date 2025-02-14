@@ -51,7 +51,7 @@ class WeatherDataFetcher:
             logger.error(f"Failed to initialize cache: {str(e)}")
             raise
     
-    def save_dataframe(self, df, start_date, end_date):
+    def concatenate_and_save_dataframe(self, df):
         """
         Save DataFrame to CSV with timestamp in filename.
         
@@ -60,17 +60,41 @@ class WeatherDataFetcher:
             start_date (str): Start date of the data
             end_date (str): End date of the data
         """
-        timestamp =  datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"weather_data_{start_date}_to_{end_date}_{timestamp}.csv"
+
+
+        #history_df = 
+        filename = f"weather_data_update_esamble.parquet"
         filepath = os.path.join(self.output_dir, filename)
-        
-        try:
-            df.write_csv(filepath)
-            logger.info(f"DataFrame saved successfully to {filepath}")
-        except Exception as e:
-            logger.error(f"Failed to save DataFrame: {str(e)}")
-            raise
-        
+        if os.path.exists(filepath):
+            
+            try:
+                history_df = pl.read_parquet(str(filepath))
+                df_updated = (
+                            pl.concat([history_df, df])
+                            .group_by("time")
+                            .agg(
+                                pl.exclude("time").last()
+                            )
+                            .sort("time")
+                            )
+                df_updated.write_parquet(filepath, compression="snappy")
+                logger.info(f"DataFrame updated successfully to {filepath}")
+                
+            except Exception as e:
+                logger.error(f"Failed to save DataFrame: {str(e)}")
+                raise 
+                   
+        else: 
+            logger.info(f"Old file version not found...")   
+            logger.info(f"Creating one...")   
+            try: 
+                df.write_parquet(filepath, compression="snappy")
+            except:
+                logger.error(f"Failed to create DataFrame: {str(e)}")
+                raise 
+                
+                
+                
     def fetch_weather_data(self, start_date, end_date, models="icon_seamless"):
         """
         Fetch weather data for the specified date range.
@@ -148,11 +172,9 @@ class WeatherDataFetcher:
                 df = df.with_columns(
                     pl.Series(f"rain_member{member}", variable.ValuesAsNumpy())
                 )
-            
+
             logger.info(f"Successfully processed data. DataFrame shape: {df.shape}")
-            
-            # Save the DataFrame
-            self.save_dataframe(df, start_date, end_date)
+            self.concatenate_and_save_dataframe(df)
             
             return metadata, df
             
@@ -173,8 +195,8 @@ if __name__ == "__main__":
         end_date = (current_date + timedelta(days=1)).strftime("%Y-%m-%d")
 
         metadata, df = fetcher.fetch_weather_data(
-            start_date="2025-02-12",
-            end_date="2025-02-13"
+            start_date=start_date,
+            end_date=end_date
         )
         
         logger.info("Weather data fetching completed successfully")
