@@ -26,6 +26,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install numpy
+        pip install openmeteo_sdk 
         pip install openmeteo-requests
         pip install polars
         pip install requests-cache
