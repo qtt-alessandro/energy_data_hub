@@ -1,6 +1,6 @@
 import openmeteo_requests
 import polars as pl
-import datetime
+from datetime import datetime, timedelta
 import logging
 import os
 from openmeteo_sdk.Variable import Variable
@@ -60,7 +60,7 @@ class WeatherDataFetcher:
             start_date (str): Start date of the data
             end_date (str): End date of the data
         """
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp =  datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"weather_data_{start_date}_to_{end_date}_{timestamp}.csv"
         filepath = os.path.join(self.output_dir, filename)
         
@@ -126,8 +126,8 @@ class WeatherDataFetcher:
             # Create base DataFrame with time
             df = pl.DataFrame({
                 'time': pl.datetime_range(
-                    start=datetime.datetime.fromtimestamp(hourly.Time()),
-                    end=datetime.datetime.fromtimestamp(hourly.TimeEnd()),
+                    start= datetime.fromtimestamp(hourly.Time()),
+                    end= datetime.fromtimestamp(hourly.TimeEnd()),
                     time_unit='ms',
                     interval='1h',
                     closed='left',
@@ -168,7 +168,10 @@ if __name__ == "__main__":
             output_dir='weather_data'  # Specify output directory
         )
         
-        # Fetch weather data
+        current_date = datetime.now()
+        start_date = current_date.strftime("%Y-%m-%d")
+        end_date = (current_date + timedelta(days=1)).strftime("%Y-%m-%d")
+
         metadata, df = fetcher.fetch_weather_data(
             start_date="2025-02-12",
             end_date="2025-02-13"
